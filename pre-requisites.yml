@@ -1,0 +1,177 @@
+---
+- hosts: all
+  gather_facts: false
+  become: yes
+  become_user: root
+  tasks:
+### Openshift Actions Pre Install 
+    - name: Refresh Subscription
+      command: "subscription-manager refresh"
+ 
+    - name: Active Openshift Repositories
+      command: "subscription-manager repos --enable={{ item }}"
+     with_items:
+        - rhel-7-server-rpms
+        - rhel-7-server-extras-rpms
+        - rhel-7-server-ose-3.9-rpms
+        - rhel-7-server-optional-rpms
+        - rhel-7-fast-datapath-rpms
+        - rhel-7-server-rh-common-rpms
+        - rhel-7-server-ansible-2.4-rpms
+
+    - name: Clean all Repositories and make repolist
+      shell: yum clean all && yum repolist
+
+    - name: Install Network Manager
+      yum:
+        name: NetworkManager
+        state:  latest
+
+    - name: Enable Network Manager
+      service: 
+        name: NetworkManager 
+        enabled: yes 
+        state: started
+
+    - name: Remove old Packages
+      yum: name={{ item }} state=absent
+      with_items:
+        - ansible
+        - wget
+        - git
+        - net-tools
+        - bind-utils
+        - iptables-services
+        - bridge-utils
+        - bash-completion
+        - chrony
+        - kexec-tools
+        - sos
+        - psacct
+        - docker
+        - atomic-openshift-utils
+        - atomic-openshift-clients
+
+    - name: Install Required Packages
+      yum: name={{ item }} state=installed
+      with_items:
+        - ansible
+        - wget
+        - git
+        - net-tools
+        - bind-utils
+        - iptables-services
+        - bridge-utils
+        - bash-completion
+        - chrony
+        - kexec-tools
+        - sos
+        - psacct
+        - docker
+        - atomic-openshift-utils
+        - atomic-openshift-clients
+
+    - name: Update the System
+      yum: state=latest name='*'
+ 
+    - name: Configure Selinux Policy
+      selinux:
+        policy: targeted
+        state: enforcing
+
+    - name: Stop Docker Service
+      service:
+        name: docker
+        state: stopped
+
+    - name: Wipe Docker Device
+      shell: wipefs -af /dev/sdb
+
+    - name: Wipe Docker Device
+      shell: wipefs -af /dev/sdb
+
+    - name: Remove Docker Content from /var/lib/docker
+      command: rm -rf /var/lib/docker/*
+
+    - name: Remove Docker Storage File if exist
+      command: rm -rf /etc/sysconfig/docker-storage-setup
+
+    - name: Configure Docker Storage File
+      copy:
+        content: "DEVS=/dev/sdb\nVG=docker-vg\nDATA_SIZE=90%FREE"
+        dest: "/etc/sysconfig/docker-storage-setup"
+
+    - name: Setup Docker Storage
+      command: docker-storage-setup
+
+### Only if the enviroment has more than one network interface
+#    - name: Get Interface Address and Update Docker Network File
+#      shell: echo "DOCKER_NETWORK_OPTIONS=' --ip={{ ansible_eth0.ipv4.address }}'" > /etc/sysconfig/docker-network
+
+### Only to integrated installation disconected with Satellite
+#    - name: Configure registries.conf with Satellite Registry address
+#      copy:
+#        src: templates/registries.conf
+#        dest: /etc/containers/registries.conf
+
+    - name: Enable and Start Docker Service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+### CNS Actions Pre Install 
+- hosts: cns
+  gather_facts: false
+  become: yes
+  become_user: root
+  tasks:
+    - name: Refresh Subscription
+      command: "subscription-manager refresh"
+ 
+    - name: Active CNS Repositories
+      command: "subscription-manager repos --enable={{ item }}"
+      with_items:
+        - rh-gluster-3-for-rhel-7-server-rpms
+
+    - name: Clean all Repositories and make repolist
+      shell: yum clean all && yum repolist
+
+    - name: Remove old Packages
+      yum: name={{ item }} state=absent
+      with_items:
+        - cns-deploy
+        - heketi-client
+        - iscsi-initiator-utils
+        - device-mapper-multipath
+
+    - name: Install Required Packages
+      yum: name={{ item }} state=installed
+      with_items:
+        - cns-deploy
+        - heketi-client
+        - iscsi-initiator-utils
+        - device-mapper-multipath
+
+    - name: Wipe Gluster Device
+      shell: wipefs -af /dev/sdb
+
+    - name: Enable MultiPath
+      command: "mpathconf --enable"
+
+    - name: Restart MultiPath Service
+      service:
+        name: multipathd
+        state: restarted
+ 
+    - name: Add Multi User Mode to RPCBind
+      command: "systemctl add-wants multi-user rpcbind.service"
+
+    - name: Enable CNS Modules to Kernel
+      shell: modprobe dm_thin_pool && modprobe dm_multipath modprobe taget_core_user
+
+    - name: Start and Enable RPCBind
+      service:
+        name: rpcbind
+        state: started
+        enabled: yes

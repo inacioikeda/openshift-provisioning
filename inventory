@@ -189,15 +189,15 @@ master2.cloudapp.com.br openshift_dns_ip=192.168.1.152 openshift_schedulable=tru
 master3.cloudapp.com.br openshift_dns_ip=192.168.1.153 openshift_schedulable=true
 
 ##### Infra Nodes
-# Corp Infra
+# Prod Infra
 infra1.cloudapp.com.br openshift_dns_ip=192.168.1.155 openshift_node_labels="{'region': 'prod', 'zone': 'infra'}"
 infra2.cloudapp.com.br openshift_dns_ip=192.168.1.156 openshift_node_labels="{'region': 'prod', 'zone': 'infra'}"
 #infra3.cloudapp.com.br openshift_dns_ip=192.168.1.157 openshift_node_labels="{'region': 'prod', 'zone': 'infra'}"
 
 # Prod CNS
-cns1.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.170 openshift_node_labels="{'region': 'apps', 'zone': 'storage'}"
-cns2.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.171 openshift_node_labels="{'region': 'apps', 'zone': 'storage'}"
-cns3.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.172 openshift_node_labels="{'region': 'apps', 'zone': 'storage'}"
+cns1.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.170 openshift_node_labels="{'region': 'prod', 'zone': 'storage'}"
+cns2.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.171 openshift_node_labels="{'region': 'prod', 'zone': 'storage'}"
+cns3.cloudapp.com.br storage=True openshift_dns_ip=192.168.1.172 openshift_node_labels="{'region': 'prod', 'zone': 'storage'}"
 
 ##### Application Nodes
 # Prod Applications

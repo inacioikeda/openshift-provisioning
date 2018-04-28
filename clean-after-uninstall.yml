@@ -1,0 +1,84 @@
+---
+
+- hosts: all
+  gather_facts: true
+  become: yes
+  become_user: root
+  tasks:
+    - name: Remove CNI directory
+      command: rm -rf /etc/cni
+ 
+    - name: Stop Docker Service
+      command: systemctl stop docker
+
+    - name: Remove OLD LVs
+      shell: lvremove /dev/docker-vg/docker-pool -y
+
+    - name: Remove OLD VGs
+      command: vgremove docker-vg
+
+    - name: Remove OLD PVs
+      command: pvremove /dev/sdb1
+
+    - name: Remove partition
+      command: parted -s /dev/sdb rm 1
+ 
+    - name: Wipe Docker Device
+      command: wipefs -af /dev/sdb
+ 
+    - name: Wipe Gluster Device
+      command: wipefs -af /dev/sdc
+
+    - name: Clean OLD Docker files
+      shell: rm -rf /var/lib/docker/*
+
+    - name: Clean OLD docker-storage configuration
+      command: rm -rf /etc/sysconfig/docker-storage
+ 
+    - name: Remove Docker Storage File if exist
+      command: rm -rf /etc/sysconfig/docker-storage-setup
+
+    - name: Configure new Docker Storage File
+      copy:
+        content: "DEVS=/dev/sdb\nVG=docker-vg\nDATA_SIZE=90%FREE"
+        dest: "/etc/sysconfig/docker-storage-setup"
+
+    - name: Configure Docker Storage
+      command: docker-storage-setup
+
+    - name: Get Interface Address and Update Docker Network File
+      shell: echo "DOCKER_NETWORK_OPTIONS=' --ip={{ ansible_eth0.ipv4.address }}'" > /etc/sysconfig/docker-network
+
+#    - name: Configure registries.conf with Satellite Registry address
+#      copy:
+#        src: templates/registries.conf
+#        dest: /etc/containers/registries.conf
+
+    - name: Enable and Start Docker Service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+#- hosts: cns
+#  gather_facts: false
+#  become: yes
+#  become_user: root
+#  tasks:
+#    - name: Pull CNS Gluster Server Image from Satellite
+#      command: docker pull ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-server-rhel7
+#
+#    - name: Tag CNS Gluster Server Image
+#      command: docker tag ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-server-rhel7 ah-cl-gw-001.corp.bradesco.com.br:5000/rhgs3/rhgs-server-rhel7
+#
+#    - name: Pull CNS Gluster Block Provisioner Image from Satellite
+#      command: docker pull ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-gluster-block-prov-rhel7
+#
+#    - name: Tag CNS Gluster Block Provisioner Image
+#      command: docker tag ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-gluster-block-prov-rhel7 ah-cl-gw-001.corp.bradesco.com.br:5000/rhgs3/rhgs-gluster-block-prov-rhel7
+#
+#    - name: Pull CNS Heketi Image from Satellite
+#      command: docker pull ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-volmanager-rhel7
+#
+#    - name: Tag CNS Heketi Image
+#      command: docker tag ah-cl-gw-001.corp.bradesco.com.br:5000/bradesco-openshift-rhgs3_rhgs-volmanager-rhel7 ah-cl-gw-001.corp.bradesco.com.br:5000/rhgs3/rhgs-volmanager-rhel7
